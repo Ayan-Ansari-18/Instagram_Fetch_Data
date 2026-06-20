@@ -1,81 +1,91 @@
 const axios = require('axios');
 
-const BASE_URL = 'https://graph.instagram.com';
-const FB_BASE_URL = 'https://graph.facebook.com/v19.0';
+const RAPIDAPI_HOST = 'instagram-scraper-api2.p.rapidapi.com';
+const RAPIDAPI_BASE = `https://${RAPIDAPI_HOST}`;
 
-// Parse follower range string "5000-50000" => { min: 5000, max: 50000 }
+const rapidapi = axios.create({
+  baseURL: RAPIDAPI_BASE,
+  headers: {
+    'x-rapidapi-host': RAPIDAPI_HOST,
+    'x-rapidapi-key': process.env.RAPIDAPI_KEY,
+  },
+  timeout: 10000,
+});
+
 const parseFollowerRange = (range) => {
   if (!range) return null;
   const parts = range.split('-').map(Number);
-  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]))
     return { min: parts[0], max: parts[1] };
-  }
   return null;
 };
 
-// Calculate engagement rate
-const calcEngagement = (likes, comments, followers) => {
-  if (!followers) return 0;
-  return (((likes + comments) / followers) * 100).toFixed(2);
-};
+const formatProfile = (data) => ({
+  name: data.full_name || data.username || '',
+  username: data.username || '',
+  bio: data.biography || '',
+  city: data.city_name || data.location || '',
+  followers: data.follower_count || data.edge_followed_by?.count || 0,
+  following: data.following_count || data.edge_follow?.count || 0,
+  posts: data.media_count || data.edge_owner_to_timeline_media?.count || 0,
+  engagementRate: data.engagement_rate ? parseFloat(data.engagement_rate).toFixed(2) : '0.00',
+  accountType: data.is_business ? 'Business' : data.is_professional_account ? 'Creator' : 'Personal',
+  profilePic: data.profile_pic_url_hd || data.profile_pic_url || '',
+  profileUrl: `https://www.instagram.com/${data.username}/`,
+  lastPost: null,
+});
 
-// Fetch single profile by username via Graph API
-const fetchByUsername = async (username, accessToken) => {
-  const res = await axios.get(`${FB_BASE_URL}/${username}`, {
-    params: {
-      fields: 'name,biography,followers_count,follows_count,media_count,profile_picture_url,account_type,website',
-      access_token: accessToken,
-    },
+// Fetch single profile by username
+const fetchByUsername = async (username) => {
+  const res = await rapidapi.get('/v1/info', {
+    params: { username_or_id_or_url: username },
   });
-  return res.data;
+  const data = res.data?.data || res.data;
+  return formatProfile(data);
 };
 
-// Search profiles by keyword (city + profession) using hashtag/keyword search
-const searchProfiles = async ({ city, profession, followers, username }, accessToken) => {
+// Search profiles by hashtag (profession + city)
+const searchByHashtag = async (keyword) => {
+  const res = await rapidapi.get('/v1/hashtag', {
+    params: { hashtag: keyword },
+  });
+  const posts = res.data?.data?.top?.sections || res.data?.data?.recent?.sections || [];
+  const usernames = [];
+  posts.forEach(section => {
+    section?.layout_content?.medias?.forEach(media => {
+      const user = media?.media?.user;
+      if (user?.username) usernames.push(user.username);
+    });
+  });
+  return [...new Set(usernames)].slice(0, 10);
+};
+
+const searchProfiles = async ({ city, profession, followers, username }) => {
   try {
-    // If username provided — direct lookup
+    // Direct username lookup
     if (username) {
       const handle = username.replace('@', '');
-      const profile = await fetchByUsername(handle, accessToken);
-      return [formatProfile(profile, city, profession)];
+      const profile = await fetchByUsername(handle);
+      return [profile];
     }
 
-    // Search via hashtag: profession + city combined keyword
-    const keyword = `${profession} ${city}`.toLowerCase().replace(/\s+/g, '');
-    const hashtagRes = await axios.get(`${FB_BASE_URL}/ig_hashtag_search`, {
-      params: {
-        user_id: process.env.IG_USER_ID,
-        q: keyword,
-        access_token: accessToken,
-      },
-    });
+    // Search by hashtag
+    const keyword = `${profession}${city}`.toLowerCase().replace(/\s+/g, '');
+    const usernames = await searchByHashtag(keyword);
 
-    const hashtagId = hashtagRes.data.data?.[0]?.id;
-    if (!hashtagId) return [];
+    if (!usernames.length) {
+      // Fallback: try profession only
+      const fallbackUsernames = await searchByHashtag(profession.toLowerCase().replace(/\s+/g, ''));
+      usernames.push(...fallbackUsernames);
+    }
 
-    const mediaRes = await axios.get(`${FB_BASE_URL}/${hashtagId}/top_media`, {
-      params: {
-        user_id: process.env.IG_USER_ID,
-        fields: 'id,owner,like_count,comments_count',
-        access_token: accessToken,
-      },
-    });
+    if (!usernames.length) return [];
 
-    const mediaList = mediaRes.data.data || [];
-    const ownerIds = [...new Set(mediaList.map(m => m.owner?.id).filter(Boolean))];
-
-    // Fetch each owner profile
+    // Fetch each profile
     const profiles = await Promise.all(
-      ownerIds.slice(0, 20).map(async (ownerId) => {
+      usernames.map(async (uname) => {
         try {
-          const pRes = await axios.get(`${FB_BASE_URL}/${ownerId}`, {
-            params: {
-              fields: 'name,username,biography,followers_count,follows_count,media_count,profile_picture_url,account_type',
-              access_token: accessToken,
-            },
-          });
-          const media = mediaList.find(m => m.owner?.id === ownerId);
-          return formatProfile(pRes.data, city, profession, media?.like_count, media?.comments_count);
+          return await fetchByUsername(uname);
         } catch {
           return null;
         }
@@ -92,23 +102,8 @@ const searchProfiles = async ({ city, profession, followers, username }, accessT
 
     return filtered;
   } catch (err) {
-    throw new Error(err.response?.data?.error?.message || err.message);
+    throw new Error(err.response?.data?.message || err.message);
   }
 };
-
-const formatProfile = (data, searchCity, searchProfession, likes = 0, comments = 0) => ({
-  name: data.name || '',
-  username: data.username || '',
-  bio: data.biography || '',
-  city: searchCity,
-  followers: data.followers_count || 0,
-  following: data.follows_count || 0,
-  posts: data.media_count || 0,
-  engagementRate: parseFloat(calcEngagement(likes, comments, data.followers_count)),
-  accountType: data.account_type || 'Personal',
-  profilePic: data.profile_picture_url || '',
-  profileUrl: `https://instagram.com/${data.username}`,
-  lastPost: null,
-});
 
 module.exports = { searchProfiles };

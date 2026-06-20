@@ -68,8 +68,8 @@ app.get('/api/search', withTimeout(8000), async (req, res) => {
   if (!city && !username) return res.status(400).json({ error: 'City is required' });
   if (!profession && !username) return res.status(400).json({ error: 'Profession is required' });
 
-  const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
-  if (!accessToken) return res.status(500).json({ error: 'Instagram access token not configured' });
+  const rapidApiKey = process.env.RAPIDAPI_KEY;
+  if (!rapidApiKey) return res.status(500).json({ error: 'RapidAPI key not configured' });
 
   const cacheKey = `${city}:${profession}:${followers}:${username}`;
   const cached = getCached(cacheKey);
@@ -77,7 +77,7 @@ app.get('/api/search', withTimeout(8000), async (req, res) => {
 
   try {
     const results = await withRetry(() =>
-      searchProfiles({ city, profession, followers, username }, accessToken)
+      searchProfiles({ city, profession, followers, username })
     );
     setCache(cacheKey, results);
     res.json({ results });
