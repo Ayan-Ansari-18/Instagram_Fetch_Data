@@ -51,7 +51,7 @@ const withRetry = async (fn, retries = 3, delay = 2000) => {
   }
 };
 
-// Request timeout middleware — 8 seconds
+// Request timeout middleware
 const withTimeout = (ms) => (req, res, next) => {
   res.setTimeout(ms, () => {
     res.status(503).json({ error: 'Request timeout, please retry' });
@@ -59,7 +59,7 @@ const withTimeout = (ms) => (req, res, next) => {
   next();
 };
 
-app.get('/api/search', withTimeout(8000), async (req, res) => {
+app.get('/api/search', withTimeout(30000), async (req, res) => {
   const city = sanitize(req.query.city);
   const profession = sanitize(req.query.profession);
   const followers = sanitize(req.query.followers);

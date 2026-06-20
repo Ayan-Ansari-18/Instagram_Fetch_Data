@@ -8,6 +8,8 @@ const headers = {
   'x-rapidapi-key': process.env.RAPIDAPI_KEY,
 };
 
+const TIMEOUT = 25000;
+
 const parseFollowerRange = (range) => {
   if (!range) return null;
   const parts = range.split('-').map(Number);
@@ -20,7 +22,7 @@ const parseFollowerRange = (range) => {
 const searchUsers = async (query) => {
   const res = await axios.post(`${BASE}/search_ig.php`,
     new URLSearchParams({ search_query: query }),
-    { headers }
+    { headers, timeout: TIMEOUT }
   );
   const items = res.data?.users || res.data?.data?.users || res.data?.result?.users || [];
   return items.map(u => u.username || u.user?.username).filter(Boolean);
@@ -29,7 +31,7 @@ const searchUsers = async (query) => {
 // Get full profile by username
 const getUserProfile = async (username) => {
   const res = await axios.get(`${BASE}/get_ig_user_basic_and_posts.php`,
-    { headers: { ...headers, 'Content-Type': 'application/json' }, params: { username_or_url: username } }
+    { headers: { ...headers, 'Content-Type': 'application/json' }, params: { username_or_url: username }, timeout: TIMEOUT }
   );
   return res.data?.data || res.data?.user || res.data;
 };
@@ -63,7 +65,7 @@ const searchProfiles = async ({ city, profession, followers, username }) => {
     }
 
     const profiles = await Promise.all(
-      usernames.slice(0, 10).map(async (uname) => {
+      usernames.slice(0, 5).map(async (uname) => {
         try {
           const data = await getUserProfile(uname);
           return formatProfile(data);
