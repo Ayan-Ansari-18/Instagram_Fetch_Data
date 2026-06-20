@@ -1,0 +1,17 @@
+.app {
+  min-height: 100vh;
+}
+
+.error-toast {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(244, 67, 54, 0.9);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  z-index: 999;
+  backdrop-filter: blur(8px);
+}

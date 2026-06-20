@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: instagram-fetch-app
+    env: node
+    region: singapore
+    plan: free
+    rootDir: my-app
+    buildCommand: npm run render-build
+    startCommand: npm run render-start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: INSTAGRAM_ACCESS_TOKEN
+        sync: false
+      - key: IG_USER_ID
+        sync: false
+      - key: PORT
+        value: 5000
+      - key: ALLOWED_ORIGINS
+        sync: false

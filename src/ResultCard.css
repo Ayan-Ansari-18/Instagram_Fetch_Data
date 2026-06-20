@@ -1,0 +1,102 @@
+.result-card {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.result-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.card-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.card-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.card-username {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 2px 0 0;
+}
+
+.card-city {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 2px 0 0;
+}
+
+.card-bio {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.card-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.card-stats span {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.engagement {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.account-type {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-left: auto;
+}
+
+.open-btn {
+  background: white;
+  color: #111;
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.open-btn:hover {
+  opacity: 0.85;
+}
