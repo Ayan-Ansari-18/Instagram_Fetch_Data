@@ -93,7 +93,7 @@ app.get('/health', (_, res) => res.json({ status: 'ok', cacheSize: cache.size })
 if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, '..', 'build');
   app.use(express.static(buildPath));
-  app.get('*', (_, res) => res.sendFile(path.join(buildPath, 'index.html')));
+  app.get('/{*path}', (_, res) => res.sendFile(path.join(buildPath, 'index.html')));
 }
 
 if (require.main === module) {
