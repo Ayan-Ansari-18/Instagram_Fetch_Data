@@ -83,11 +83,35 @@ app.get('/api/search', withTimeout(8000), async (req, res) => {
     res.json({ results });
   } catch (err) {
     console.error('Search error:', err.message);
+    // Fallback to mock data if Instagram API fails
+    if (process.env.USE_MOCK_DATA === 'true') {
+      const mock = generateMock(city, profession, followers);
+      return res.json({ results: mock, fromMock: true });
+    }
     res.status(500).json({ error: err.message || 'Data fetch mein problem hui, please retry' });
   }
 });
 
 app.get('/health', (_, res) => res.json({ status: 'ok', cacheSize: cache.size }));
+
+const generateMock = (city, profession, followers) => {
+  const range = followers ? followers.split('-').map(Number) : [5000, 50000];
+  const mid = Math.floor((range[0] + range[1]) / 2);
+  return Array.from({ length: 5 }, (_, i) => ({
+    name: `${profession} Expert ${i + 1}`,
+    username: `${profession.toLowerCase().replace(/\s+/g, '')}${city.toLowerCase()}${i + 1}`,
+    bio: `${profession} based in ${city}`,
+    city,
+    followers: mid + i * 1000,
+    following: 500 + i * 50,
+    posts: 100 + i * 10,
+    engagementRate: parseFloat((3.5 + i * 0.2).toFixed(2)),
+    accountType: i % 2 === 0 ? 'Creator' : 'Business',
+    profilePic: '',
+    profileUrl: `https://instagram.com/${profession.toLowerCase()}${city.toLowerCase()}${i + 1}`,
+    lastPost: null,
+  }));
+};
 
 // Serve React frontend in production
 if (process.env.NODE_ENV === 'production') {
