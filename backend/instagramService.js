@@ -25,8 +25,18 @@ const searchUsers = async (query) => {
     { headers, timeout: TIMEOUT }
   );
   console.log('Search response:', JSON.stringify(res.data).slice(0, 500));
-  const items = res.data?.users || res.data?.data?.users || res.data?.result?.users || [];
-  return items.map(u => u.username || u.user?.username).filter(Boolean);
+  const data = res.data;
+  // Try all possible response structures
+  const items =
+    data?.users ||
+    data?.data?.users ||
+    data?.result?.users ||
+    data?.accounts ||
+    data?.data?.accounts ||
+    data?.list ||
+    [];
+  console.log('Parsed usernames:', items.slice(0, 3));
+  return items.map(u => u.username || u.user?.username || u).filter(v => typeof v === 'string').slice(0, 5);
 };
 
 // Get full profile by username
@@ -60,9 +70,16 @@ const searchProfiles = async ({ city, profession, followers, username }) => {
     if (username) {
       usernames = [username.replace('@', '')];
     } else {
-      // Try "profession city" first, fallback to profession only
-      usernames = await searchUsers(`${profession} ${city}`);
-      if (!usernames.length) usernames = await searchUsers(profession);
+      // Try different query combinations
+      const queries = [
+        profession.toLowerCase(),
+        `${profession} ${city}`.toLowerCase(),
+        city.toLowerCase(),
+      ];
+      for (const q of queries) {
+        usernames = await searchUsers(q);
+        if (usernames.length) break;
+      }
       if (!usernames.length) return [];
     }
 
