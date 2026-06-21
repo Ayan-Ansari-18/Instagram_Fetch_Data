@@ -2,13 +2,13 @@ const axios = require('axios');
 
 const HOST = 'instagram-scraper-stable-api.p.rapidapi.com';
 const BASE = `https://${HOST}`;
+const TIMEOUT = 25000;
+
 const headers = {
   'Content-Type': 'application/x-www-form-urlencoded',
   'x-rapidapi-host': HOST,
   'x-rapidapi-key': process.env.RAPIDAPI_KEY,
 };
-
-const TIMEOUT = 25000;
 
 const parseFollowerRange = (range) => {
   if (!range) return null;
@@ -18,90 +18,75 @@ const parseFollowerRange = (range) => {
   return null;
 };
 
-// Search users by keyword
+const parseFollowerCount = (str) => {
+  if (!str) return 0;
+  if (typeof str === 'number') return str;
+  const s = str.replace(/,/g, '').toLowerCase();
+  if (s.includes('m')) return Math.round(parseFloat(s) * 1000000);
+  if (s.includes('k')) return Math.round(parseFloat(s) * 1000);
+  return parseInt(s) || 0;
+};
+
 const searchUsers = async (query) => {
   const res = await axios.post(`${BASE}/search_ig.php`,
     new URLSearchParams({ search_query: query }),
     { headers, timeout: TIMEOUT }
   );
-  console.log('Search response:', JSON.stringify(res.data).slice(0, 500));
-  const data = res.data;
-  // Try all possible response structures
-  const items =
-    data?.users ||
-    data?.data?.users ||
-    data?.result?.users ||
-    data?.accounts ||
-    data?.data?.accounts ||
-    data?.list ||
-    [];
-  console.log('Parsed usernames:', items.slice(0, 3));
-  return items.map(u => u.username || u.user?.username || u).filter(v => typeof v === 'string').slice(0, 5);
+  const users = res.data?.users || [];
+  return users.map(item => ({
+    username: item.user?.username || '',
+    name: item.user?.full_name || '',
+    profilePic: item.user?.hd_profile_pic_url_info?.url || item.user?.profile_pic_url || '',
+    isVerified: item.user?.is_verified || false,
+    followersRaw: item.user?.search_social_context || '',
+  })).filter(u => u.username);
 };
-
-// Get full profile by username
-const getUserProfile = async (username) => {
-  const res = await axios.get(`${BASE}/get_ig_user_basic_and_posts.php`,
-    { headers: { ...headers, 'Content-Type': 'application/json' }, params: { username_or_url: username }, timeout: TIMEOUT }
-  );
-  console.log('Profile response:', JSON.stringify(res.data).slice(0, 500));
-  return res.data?.data || res.data?.user || res.data;
-};
-
-const formatProfile = (data) => ({
-  name: data.full_name || data.username || '',
-  username: data.username || '',
-  bio: data.biography || data.bio || '',
-  city: data.city_name || data.location_name || '',
-  followers: data.follower_count || data.followers || 0,
-  following: data.following_count || data.following || 0,
-  posts: data.media_count || data.posts_count || 0,
-  engagementRate: data.engagement_rate ? parseFloat(data.engagement_rate).toFixed(2) : '0.00',
-  accountType: data.is_business ? 'Business' : data.is_professional_account ? 'Creator' : 'Personal',
-  profilePic: data.profile_pic_url_hd || data.profile_pic_url || '',
-  profileUrl: `https://www.instagram.com/${data.username}/`,
-  lastPost: null,
-});
 
 const searchProfiles = async ({ city, profession, followers, username }) => {
   try {
-    let usernames = [];
+    let users = [];
 
     if (username) {
-      usernames = [username.replace('@', '')];
+      users = await searchUsers(username.replace('@', ''));
     } else {
-      // Try different query combinations
       const queries = [
-        profession.toLowerCase(),
-        `${profession} ${city}`.toLowerCase(),
-        city.toLowerCase(),
+        `${profession} ${city}`,
+        profession,
+        city,
       ];
       for (const q of queries) {
-        usernames = await searchUsers(q);
-        if (usernames.length) break;
+        users = await searchUsers(q);
+        if (users.length) break;
       }
-      if (!usernames.length) return [];
     }
 
-    const profiles = await Promise.all(
-      usernames.slice(0, 5).map(async (uname) => {
-        try {
-          const data = await getUserProfile(uname);
-          return formatProfile(data);
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    let filtered = profiles.filter(Boolean);
+    if (!users.length) return [];
 
     const range = parseFollowerRange(followers);
+
+    const profiles = users.slice(0, 10).map(u => {
+      const followerCount = parseFollowerCount(u.followersRaw);
+      return {
+        name: u.name || u.username,
+        username: u.username,
+        bio: '',
+        city: city || '',
+        followers: followerCount,
+        following: 0,
+        posts: 0,
+        engagementRate: '0.00',
+        accountType: u.isVerified ? 'Creator' : 'Personal',
+        profilePic: u.profilePic,
+        profileUrl: `https://www.instagram.com/${u.username}/`,
+        lastPost: null,
+      };
+    });
+
     if (range) {
-      filtered = filtered.filter(p => p.followers >= range.min && p.followers <= range.max);
+      return profiles.filter(p => p.followers >= range.min && p.followers <= range.max);
     }
 
-    return filtered;
+    return profiles;
   } catch (err) {
     throw new Error(err.response?.data?.message || err.message);
   }
