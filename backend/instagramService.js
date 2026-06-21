@@ -72,7 +72,13 @@ const searchProfiles = async ({ city, profession, followers, username }) => {
     if (username) {
       usernames = [username.replace('@', '')];
     } else {
-      const queries = [`${profession} ${city}`, profession, city];
+      const queries = [
+        profession,
+        `${profession}${city}`.toLowerCase().replace(/\s+/g, ''),
+        `${city}${profession}`.toLowerCase().replace(/\s+/g, ''),
+        `${profession} ${city}`,
+        city,
+      ];
       for (const q of queries) {
         usernames = await searchUsernames(q);
         if (usernames.length) break;
