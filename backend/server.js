@@ -59,7 +59,7 @@ const withTimeout = (ms) => (req, res, next) => {
   next();
 };
 
-app.get('/api/search', withTimeout(30000), async (req, res) => {
+app.get('/api/search', withTimeout(90000), async (req, res) => {
   const city = sanitize(req.query.city);
   const profession = sanitize(req.query.profession);
   const followers = sanitize(req.query.followers);
