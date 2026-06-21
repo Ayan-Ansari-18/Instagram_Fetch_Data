@@ -24,6 +24,7 @@ const searchUsers = async (query) => {
     new URLSearchParams({ search_query: query }),
     { headers, timeout: TIMEOUT }
   );
+  console.log('Search response:', JSON.stringify(res.data).slice(0, 500));
   const items = res.data?.users || res.data?.data?.users || res.data?.result?.users || [];
   return items.map(u => u.username || u.user?.username).filter(Boolean);
 };
@@ -33,6 +34,7 @@ const getUserProfile = async (username) => {
   const res = await axios.get(`${BASE}/get_ig_user_basic_and_posts.php`,
     { headers: { ...headers, 'Content-Type': 'application/json' }, params: { username_or_url: username }, timeout: TIMEOUT }
   );
+  console.log('Profile response:', JSON.stringify(res.data).slice(0, 500));
   return res.data?.data || res.data?.user || res.data;
 };
 
