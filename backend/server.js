@@ -79,7 +79,7 @@ app.get('/api/search', withTimeout(30000), async (req, res) => {
     const results = await withRetry(() =>
       searchProfiles({ city, profession, followers, username })
     );
-    setCache(cacheKey, results);
+    if (results.length > 0) setCache(cacheKey, results);
     res.json({ results });
   } catch (err) {
     console.error('Search error:', err.message);
